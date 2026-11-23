@@ -1,0 +1,30 @@
+# Copie para config.toml e ajuste.
+
+# Aeroporto/cidade de origem (código IATA). A confirmar.
+origin = "BOS"
+
+# Destinos (códigos IATA). Vazio = qualquer destino.
+destinations = []
+
+# Meses de ida no formato "AAAA-MM". Vazio = próximos `months_ahead` meses.
+months = []
+months_ahead = 6
+
+# true = só ida; false = ida e volta
+one_way = false
+
+# true = só voos diretos
+direct_only = false
+
+currency = "usd"
+
+[alerts]
+# Avisa qualquer oferta abaixo deste valor (0 = desliga)
+max_price = 400
+# Avisa quando o preço de uma rota cai X% abaixo do menor já visto
+drop_pct = 15
+
+[telegram]
+# Opcional. Também pode usar as variáveis TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.
+bot_token = ""
+chat_id = ""
