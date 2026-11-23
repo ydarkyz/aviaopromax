@@ -87,8 +87,8 @@ class TravelpayoutsProvider:
                         continue
                     link = d.get("link", "")
                     o = Offer(
-                        origin=d.get("origin", cfg.origin),
-                        destination=d.get("destination", dest),
+                        origin=d.get("origin_airport") or d.get("origin", cfg.origin),
+                        destination=d.get("destination_airport") or d.get("destination", dest),
                         price=float(d["price"]),
                         currency=cfg.currency,
                         depart=(d.get("departure_at") or "")[:10],
@@ -97,6 +97,10 @@ class TravelpayoutsProvider:
                         transfers=int(d.get("transfers", 0)),
                         link=f"https://www.aviasales.com{link}" if link else "",
                     )
+                    # A API usa códigos de cidade (BOS inclui PSM, NYC = JFK/LGA/EWR):
+                    # só aceita o aeroporto exato que foi escolhido.
+                    if o.origin != cfg.origin or (cfg.destinations and o.destination not in cfg.destinations):
+                        continue
                     if cfg.matches_dates(o.depart, o.ret):
                         offers.append(o)
         return offers

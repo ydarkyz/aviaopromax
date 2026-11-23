@@ -43,3 +43,19 @@ def test_travelpayouts_exact_day_params():
     assert TravelpayoutsProvider._date_params(cfg) == [
         {"departure_at": "2027-01-10", "return_at": "2027-01-17"}
     ]
+
+
+def test_travelpayouts_keeps_only_exact_airports(monkeypatch):
+    from aviaopromax.providers import TravelpayoutsProvider
+    rows = [
+        {"origin": "BOS", "origin_airport": "PSM", "destination": "ORL", "destination_airport": "MCO",
+         "price": 128, "departure_at": "2027-01-30T10:00:00-05:00", "transfers": 0},
+        {"origin": "BOS", "origin_airport": "BOS", "destination": "NYC", "destination_airport": "LGA",
+         "price": 141, "departure_at": "2027-01-14T06:00:00-05:00", "transfers": 0},
+        {"origin": "BOS", "origin_airport": "BOS", "destination": "SAN", "destination_airport": "SAN",
+         "price": 154, "departure_at": "2027-01-28T06:00:00-05:00", "transfers": 1},
+    ]
+    p = TravelpayoutsProvider(token="x")
+    monkeypatch.setattr(p, "_get", lambda params: rows)
+    offers = p.search(Config(months=["2027-01"], one_way=True))
+    assert [o.route for o in offers] == ["BOS-LGA"]
