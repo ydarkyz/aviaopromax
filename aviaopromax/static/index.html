@@ -85,6 +85,11 @@
   .status { margin: 16px 0 8px; color: var(--muted); min-height: 1.4em; }
   .status.err { background: var(--err-bg); color: var(--err-text); padding: 10px 12px; border-radius: 8px; }
   .banner { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: var(--err-bg); color: var(--err-text); font-size: 14px; }
+  .token-row { margin-top: 8px; flex-wrap: wrap; }
+  .token-row input { flex: 1 1 220px; }
+  .token-row button { flex: 0 0 auto; }
+  input[type=password] { font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px; }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -106,9 +111,14 @@
     <span class="sub">Promoções de voos diretos</span>
   </header>
 
-  <div id="banner" class="banner" hidden>
-    Sem <code>TRAVELPAYOUTS_TOKEN</code> configurado: só o modo de teste (dados falsos) funciona.
-  </div>
+  <form id="banner" class="banner" hidden>
+    <div>Falta o token da Travelpayouts: sem ele só o modo teste (dados falsos) funciona.
+      Cole o token abaixo; ele fica salvo só no seu computador (<code>config.toml</code>).</div>
+    <div class="row token-row">
+      <input type="password" id="token-input" placeholder="Cole o token aqui" aria-label="Token da Travelpayouts" autocomplete="off">
+      <button type="submit" class="primary" id="token-btn">Salvar token</button>
+    </div>
+  </form>
 
   <form id="form" class="card" autocomplete="off">
     <div class="section">
@@ -432,7 +442,7 @@ function fillForm(c) {
   form.one_way.checked = c.one_way;
   document.getElementById("return-field").hidden = c.one_way;
   document.getElementById("banner").hidden = c.has_token;
-  if (!c.has_token) form.mock.checked = true;
+  form.mock.checked = !c.has_token;
   document.getElementById("notify-wrap").hidden = !c.has_telegram;
 }
 
@@ -516,6 +526,22 @@ form.addEventListener("submit", async e => {
     setStatus(`${data.results.length} destino(s) · ${data.deal_count} promoção(ões) · meses: ${data.months.join(", ")}`);
   } catch (err) {
     setStatus("Erro: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("banner").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("token-btn");
+  btn.disabled = true;
+  setStatus("Conferindo o token…");
+  try {
+    fillForm(await api("/api/token", {token: document.getElementById("token-input").value}));
+    document.getElementById("token-input").value = "";
+    setStatus("Token salvo e funcionando. Agora as buscas usam preços reais.");
+  } catch (err) {
+    setStatus("Token não funcionou: " + err.message, true);
   } finally {
     btn.disabled = false;
   }

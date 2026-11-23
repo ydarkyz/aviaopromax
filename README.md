@@ -35,7 +35,7 @@ python -m aviaopromax --mock         # teste com dados falsos
 Com dados reais (token gratuito em https://www.travelpayouts.com/developers/api):
 
 ```bash
-export TRAVELPAYOUTS_TOKEN=seu_token
+export TRAVELPAYOUTS_TOKEN=seu_token   # ou cole o token na própria interface web
 python -m aviaopromax
 ```
 

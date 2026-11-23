@@ -58,3 +58,16 @@ def test_return_before_depart_rejected(tmp_path):
     app = App(tmp_path / "config.toml", str(tmp_path / "p.db"))
     with pytest.raises(ValueError, match="volta"):
         app.search({"mock": True, "depart_from": "2027-02-10", "return_from": "2027-02-01"})
+
+
+def test_save_token_persists_and_hides(tmp_path, monkeypatch):
+    from aviaopromax import providers
+    monkeypatch.delenv("TRAVELPAYOUTS_TOKEN", raising=False)
+    monkeypatch.setattr(providers.TravelpayoutsProvider, "_get", lambda self, params: [])
+    app = App(tmp_path / "config.toml", str(tmp_path / "p.db"))
+    assert app.get_config()["has_token"] is False
+    out = app.save_token({"token": "  abc123  "})
+    assert out["has_token"] is True and "travelpayouts_token" not in out
+    assert config.load(tmp_path / "config.toml").travelpayouts_token == "abc123"
+    app.save({"max_price": 300})  # salvar outras opções mantém o token
+    assert config.load(tmp_path / "config.toml").travelpayouts_token == "abc123"

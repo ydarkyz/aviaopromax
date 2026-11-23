@@ -42,7 +42,7 @@ class TravelpayoutsProvider:
     def __init__(self, token: str | None = None):
         self.token = token or os.getenv("TRAVELPAYOUTS_TOKEN", "")
         if not self.token:
-            raise RuntimeError("Defina TRAVELPAYOUTS_TOKEN (ou use --mock).")
+            raise RuntimeError("Token da Travelpayouts não configurado (ou use o modo teste).")
 
     def _get(self, params: dict) -> list[dict]:
         url = f"{self.URL}?{urllib.parse.urlencode(params)}"

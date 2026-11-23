@@ -65,6 +65,9 @@ def save_config(cfg: config.Config, path: Path) -> None:
         f"max_price = {_toml_value(cfg.max_price)}",
         f"drop_pct = {_toml_value(cfg.drop_pct)}",
         "",
+        "[travelpayouts]",
+        f"token = {_toml_value(cfg.travelpayouts_token)}",
+        "",
         "[telegram]",
         f"bot_token = {_toml_value(cfg.telegram_token)}",
         f"chat_id = {_toml_value(cfg.telegram_chat_id)}",
@@ -113,8 +116,9 @@ class App:
         cfg = config.load(self.config_path)
         d = asdict(cfg)
         d.pop("telegram_token")
+        d.pop("travelpayouts_token")
         d.pop("telegram_chat_id")
-        d["has_token"] = bool(os.getenv("TRAVELPAYOUTS_TOKEN"))
+        d["has_token"] = bool(cfg.travelpayouts_token)
         d["has_telegram"] = bool(cfg.telegram_token and cfg.telegram_chat_id)
         d["search_months"] = cfg.search_months()
         return d
@@ -122,7 +126,7 @@ class App:
     def search(self, form: dict) -> dict:
         cfg = apply_form(config.load(self.config_path), form)
         validate(cfg)
-        provider = MockProvider() if form.get("mock") else TravelpayoutsProvider()
+        provider = MockProvider() if form.get("mock") else TravelpayoutsProvider(cfg.travelpayouts_token)
         store = Store(self.db_path)
         offers = provider.search(cfg)
         deals = dict((o.route, r) for o, r in alerts.find_deals(cfg, offers, store))
@@ -144,6 +148,18 @@ class App:
             )
             alerts.send_telegram(cfg, msg)
         return {"months": cfg.search_months(), "results": rows, "deal_count": len(deals)}
+
+    def save_token(self, form: dict) -> dict:
+        token = str(form.get("token") or "").strip()
+        if not token:
+            raise ValueError("Cole o token da Travelpayouts.")
+        cfg = config.load(self.config_path)
+        cfg.travelpayouts_token = token
+        TravelpayoutsProvider(token)._get(  # confere se o token funciona
+            {"origin": cfg.origin, "currency": cfg.currency, "limit": 1}
+        )
+        save_config(cfg, self.config_path)
+        return self.get_config()
 
     def save(self, form: dict) -> dict:
         cfg = apply_form(config.load(self.config_path), form)
@@ -185,6 +201,8 @@ def make_handler(app: App):
                     self._json(200, app.search(form))
                 elif self.path == "/api/config":
                     self._json(200, app.save(form))
+                elif self.path == "/api/token":
+                    self._json(200, app.save_token(form))
                 else:
                     self._json(404, {"error": "not found"})
             except Exception as e:  # mostra o erro na interface

@@ -31,6 +31,10 @@ max_price = 400
 # Avisa quando o preço de uma rota cai X% abaixo do menor já visto
 drop_pct = 15
 
+[travelpayouts]
+# Token da Data API (também pode usar a variável TRAVELPAYOUTS_TOKEN).
+token = ""
+
 [telegram]
 # Opcional. Também pode usar as variáveis TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.
 bot_token = ""

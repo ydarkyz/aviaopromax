@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     cfg = config.load(args.config)
-    provider = MockProvider() if args.mock else TravelpayoutsProvider()
+    provider = MockProvider() if args.mock else TravelpayoutsProvider(cfg.travelpayouts_token)
     store = Store(args.db)
 
     dest = ", ".join(cfg.destinations) or "qualquer lugar"
