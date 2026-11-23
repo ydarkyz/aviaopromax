@@ -165,8 +165,20 @@ class App:
         win, rwin = cfg.depart_window(), cfg.return_window()
         depart = win[0].isoformat() if win else ""
         ret = rwin[0].isoformat() if rwin else ""
+        # um link por dia de ida do intervalo (máx. 31), ou um link geral sem datas
+        days = []
+        if win:
+            n = min((win[1] - win[0]).days + 1, 31)
+            days = [(win[0] + dt.timedelta(days=i)).isoformat() for i in range(n)]
         missing = [
-            {"destination": d, "google_flights": google_flights_url(cfg.origin, d, depart, ret, cfg.direct_only)}
+            {
+                "destination": d,
+                "google_flights": google_flights_url(cfg.origin, d, depart, ret, cfg.direct_only),
+                "days": [
+                    {"date": day, "url": google_flights_url(cfg.origin, d, day, ret, cfg.direct_only)}
+                    for day in days
+                ],
+            }
             for d in cfg.destinations
             if d not in found
         ]

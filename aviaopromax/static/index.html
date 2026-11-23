@@ -95,6 +95,9 @@
   .keys p { margin: 8px 0 0; }
   .notes { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; }
   .notes li { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .day-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .day-links a { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; text-decoration: none; font-size: 13px; }
+  .day-links a:hover { background: var(--accent-soft); }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -509,10 +512,24 @@ function renderNotes(data) {
     const li = document.createElement("li");
     const a = BY_CODE.get(m.destination);
     li.append(`Sem preço guardado para ${m.destination}${a && a.city ? " (" + a.city + ")" : ""} nessas datas. `);
-    const l = document.createElement("a");
-    l.href = m.google_flights; l.target = "_blank"; l.rel = "noopener";
-    l.textContent = "Ver no Google Flights";
-    li.appendChild(l);
+    if (m.days && m.days.length > 1) {
+      li.append("Ver no Google Flights, um dia por link:");
+      const wrap = document.createElement("div");
+      wrap.className = "day-links";
+      for (const d of m.days) {
+        const l = document.createElement("a");
+        l.href = d.url; l.target = "_blank"; l.rel = "noopener";
+        l.textContent = new Date(d.date + "T12:00:00").toLocaleDateString("pt-BR", {weekday: "short", day: "2-digit", month: "2-digit"});
+        wrap.appendChild(l);
+      }
+      li.appendChild(wrap);
+    } else {
+      const l = document.createElement("a");
+      l.href = (m.days && m.days[0]) ? m.days[0].url : m.google_flights;
+      l.target = "_blank"; l.rel = "noopener";
+      l.textContent = "Ver no Google Flights";
+      li.appendChild(l);
+    }
     ul.appendChild(li);
   }
 }

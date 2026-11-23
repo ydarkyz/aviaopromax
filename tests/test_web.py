@@ -71,3 +71,18 @@ def test_save_token_persists_and_hides(tmp_path, monkeypatch):
     assert config.load(tmp_path / "config.toml").travelpayouts_token == "abc123"
     app.save({"max_price": 300})  # salvar outras opções mantém o token
     assert config.load(tmp_path / "config.toml").travelpayouts_token == "abc123"
+
+
+def test_missing_destination_gets_one_google_link_per_day(tmp_path, monkeypatch):
+    from aviaopromax.web import App as A
+    class Empty:
+        notes = []
+        def search(self, cfg):
+            return []
+    monkeypatch.setattr(A, "provider", staticmethod(lambda cfg, mock: Empty()))
+    app = A(tmp_path / "config.toml", str(tmp_path / "p.db"))
+    out = app.search({"destinations": ["GRU"], "one_way": True,
+                      "depart_from": "2027-01-16", "depart_to": "2027-01-23"})
+    days = out["missing"][0]["days"]
+    assert [d["date"] for d in days][0] == "2027-01-16" and len(days) == 8
+    assert "2027-01-23" in days[-1]["url"]
