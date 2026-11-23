@@ -39,6 +39,19 @@ export TRAVELPAYOUTS_TOKEN=seu_token   # ou cole o token na própria interface w
 python -m aviaopromax
 ```
 
+## Fontes de preço (todas grátis)
+
+- **Travelpayouts / Aviasales** (token obrigatório): busca para qualquer destino e
+  meses inteiros. Só tem preços que outras pessoas pesquisaram nos últimos dias,
+  então rotas pouco procuradas podem vir vazias.
+- **SerpApi / Google Flights** (chave opcional, 250 buscas/mês): preço ao vivo.
+  Usado só com destinos e datas exatas; no máximo 10 buscas por pesquisa.
+- Quando um destino escolhido não tem preço, a interface mostra um link direto
+  para a mesma busca no Google Flights.
+
+As chaves podem ser coladas na interface (ficam em `config.toml`, que não vai
+para o git) ou definidas em `TRAVELPAYOUTS_TOKEN` / `SERPAPI_KEY`.
+
 ## Alertas
 
 - `alerts.max_price`: qualquer rota abaixo desse valor.

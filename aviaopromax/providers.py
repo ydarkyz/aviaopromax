@@ -148,3 +148,123 @@ class MockProvider:
                     )
                 )
         return out
+
+
+def google_flights_url(origin: str, dest: str, depart: str, ret: str = "", direct: bool = True) -> str:
+    """Link de busca no Google Flights (não usa API, só abre o site)."""
+    q = f"Flights from {origin} to {dest}"
+    if depart:
+        q += f" on {depart}"
+        q += f" returning {ret}" if ret else " one way"
+    if direct:
+        q += " nonstop"
+    return "https://www.google.com/travel/flights?" + urllib.parse.urlencode({"q": q})
+
+
+class SerpApiProvider:
+    """Preços ao vivo do Google Flights via SerpApi (grátis: 250 buscas/mês).
+
+    O Google Flights precisa de destino e data exatos, então só é usado quando
+    há destinos escolhidos e datas exatas. Cada combinação destino × dia de ida
+    gasta 1 busca; o total por pesquisa é limitado por `max_calls`.
+    """
+
+    URL = "https://serpapi.com/search.json"
+
+    def __init__(self, key: str, max_calls: int = 10):
+        if not key:
+            raise RuntimeError("Chave da SerpApi não configurada.")
+        self.key = key
+        self.max_calls = max_calls
+        self.notes: list[str] = []
+
+    def _get(self, params: dict) -> dict:
+        url = f"{self.URL}?{urllib.parse.urlencode({**params, 'api_key': self.key})}"
+        with urllib.request.urlopen(url, timeout=60) as r:
+            body = json.load(r)
+        if body.get("error") and "hasn't returned any results" not in body["error"]:
+            raise RuntimeError(f"SerpApi: {body['error']}")
+        return body
+
+    def plan(self, cfg: Config) -> list[tuple[str, str, str]]:
+        """Lista de (destino, ida, volta) que serão consultados."""
+        win = cfg.depart_window()
+        if not (cfg.destinations and win):
+            return []
+        rwin = cfg.return_window()
+        if not cfg.one_way and not rwin:
+            return []  # ida e volta no Google exige data de volta
+        ret = rwin[0].isoformat() if rwin else ""
+        days = [win[0] + dt.timedelta(days=i) for i in range((win[1] - win[0]).days + 1)]
+        return [(d, day.isoformat(), ret) for d in cfg.destinations for day in days]
+
+    def search(self, cfg: Config) -> list[Offer]:
+        self.notes = []
+        plan = self.plan(cfg)
+        if len(plan) > self.max_calls:
+            self.notes.append(
+                f"Google Flights: consultei só {self.max_calls} de {len(plan)} combinações de destino e dia "
+                "(para não gastar a cota grátis). Diminua o intervalo de datas para cobrir tudo."
+            )
+            plan = plan[: self.max_calls]
+        offers = []
+        for dest, depart, ret in plan:
+            params = {
+                "engine": "google_flights",
+                "departure_id": cfg.origin,
+                "arrival_id": dest,
+                "outbound_date": depart,
+                "type": "2" if cfg.one_way else "1",
+                "currency": cfg.currency.upper(),
+                "hl": "en",
+            }
+            if ret:
+                params["return_date"] = ret
+            if cfg.direct_only:
+                params["stops"] = "1"  # 1 = só sem escalas
+            body = self._get(params)
+            link = (body.get("search_metadata") or {}).get("google_flights_url") or google_flights_url(
+                cfg.origin, dest, depart, ret, cfg.direct_only
+            )
+            for f in (body.get("best_flights") or []) + (body.get("other_flights") or []):
+                legs = f.get("flights") or []
+                if not legs or "price" not in f:
+                    continue
+                first, last = legs[0], legs[-1]
+                o = Offer(
+                    origin=first["departure_airport"]["id"],
+                    destination=last["arrival_airport"]["id"],
+                    price=float(f["price"]),
+                    currency=cfg.currency,
+                    depart=(first["departure_airport"].get("time") or depart)[:10],
+                    ret=ret,
+                    airline=" / ".join(dict.fromkeys(leg.get("airline", "") for leg in legs)),
+                    transfers=len(legs) - 1,
+                    link=link,
+                )
+                if cfg.direct_only and o.transfers:
+                    continue
+                if o.origin == cfg.origin and o.destination == dest and cfg.matches_dates(o.depart, o.ret):
+                    offers.append(o)
+        return offers
+
+
+class CombinedProvider:
+    """Junta várias fontes; uma fonte que falha vira aviso em vez de erro."""
+
+    def __init__(self, providers: list):
+        self.providers = providers
+        self.notes: list[str] = []
+
+    def search(self, cfg: Config) -> list[Offer]:
+        self.notes = []
+        offers: list[Offer] = []
+        for p in self.providers:
+            try:
+                offers += p.search(cfg)
+            except Exception as e:
+                if len(self.providers) == 1:
+                    raise
+                self.notes.append(f"{type(p).__name__.replace('Provider', '')}: {e}")
+            self.notes += getattr(p, "notes", [])
+        return offers

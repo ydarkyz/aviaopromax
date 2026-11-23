@@ -90,6 +90,11 @@
   .token-row button { flex: 0 0 auto; }
   input[type=password] { font: inherit; color: var(--text); background: var(--bg);
     border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px; }
+  .keys { margin-bottom: 12px; padding: 12px 16px; }
+  .keys summary { cursor: pointer; font-weight: 600; }
+  .keys p { margin: 8px 0 0; }
+  .notes { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .notes li { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -119,6 +124,18 @@
       <button type="submit" class="primary" id="token-btn">Salvar token</button>
     </div>
   </form>
+
+  <details class="card keys" id="serp-box">
+    <summary>Preços ao vivo do Google Flights <span id="serp-state" class="hint">(opcional)</span></summary>
+    <p class="hint">A Travelpayouts só tem preços que outras pessoas pesquisaram recentemente, então rotas
+      menos procuradas (ex.: Boston → São Paulo) podem não aparecer. Com uma chave grátis da
+      <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener">SerpApi</a> (250 buscas/mês),
+      o programa também consulta o Google Flights quando você escolhe destinos e datas exatas.</p>
+    <form class="row token-row" id="serp-form">
+      <input type="password" id="serp-input" placeholder="Cole a chave da SerpApi" aria-label="Chave da SerpApi" autocomplete="off">
+      <button type="submit" class="primary" id="serp-btn">Salvar chave</button>
+    </form>
+  </details>
 
   <form id="form" class="card" autocomplete="off">
     <div class="section">
@@ -200,6 +217,7 @@
   </form>
 
   <p id="status" class="status" role="status"></p>
+  <ul id="notes" class="notes"></ul>
 
   <section class="card table-wrap">
     <table>
@@ -224,6 +242,26 @@ const countryName = (() => {
 })();
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+// nomes em português de cidades que a base traz em inglês
+const PT_NAMES = {
+  "Lisbon": "Lisboa", "New York": "Nova York Nova Iorque", "London": "Londres", "Rome": "Roma",
+  "Madrid": "Madri", "Mexico City": "Cidade do Mexico", "Geneva": "Genebra", "Munich": "Munique",
+  "Milan": "Milao", "Venice": "Veneza", "Florence": "Florenca", "Athens": "Atenas",
+  "Brussels": "Bruxelas", "Copenhagen": "Copenhague", "Stockholm": "Estocolmo", "Warsaw": "Varsovia",
+  "Prague": "Praga", "Vienna": "Viena", "Zurich": "Zurique", "Edinburgh": "Edimburgo",
+  "Amsterdam": "Amsterda", "Berlin": "Berlim", "Seville": "Sevilha", "Tokyo": "Toquio",
+  "Beijing": "Pequim", "Shanghai": "Xangai", "Seoul": "Seul", "Singapore": "Cingapura Singapura",
+  "Johannesburg": "Joanesburgo", "Cape Town": "Cidade do Cabo", "Istanbul": "Istambul",
+  "Moscow": "Moscou", "Philadelphia": "Filadelfia", "New Orleans": "Nova Orleans",
+  "Asuncion": "Assuncao", "Asunción": "Assuncao", "Montevideo": "Montevideu", "Dubai": "Dubai",
+  "Cairo": "Cairo", "Marrakesh": "Marrakech Marraquexe", "Nice": "Nice", "Naples": "Napoles",
+  "Dublin": "Dublin", "Reykjavik": "Reiquiavique", "Washington": "Washington", "Cologne": "Colonia",
+  "Bruges": "Bruges", "Lyon": "Lyon Lion", "Marseille": "Marselha", "Barcelona": "Barcelona",
+  "Funchal": "Madeira", "Ponta Delgada": "Acores Açores", "Saint Petersburg": "Sao Petersburgo",
+  "Havana": "Havana", "Kingston": "Jamaica", "Montego Bay": "Jamaica", "Nassau": "Bahamas",
+  "Panama City": "Cidade do Panama", "Santo Domingo": "Sao Domingos", "Quebec": "Quebeque",
+};
+
 let AIRPORTS = [];           // [{code, name, city, country, rank, hay}]
 const BY_CODE = new Map();
 
@@ -242,7 +280,7 @@ function searchAirports(q, exclude) {
     let score;
     if (a.lcode === q) score = 0;
     else if (a.lcode.startsWith(q)) score = 1;
-    else if (a.lcity.startsWith(q)) score = 2;
+    else if (a.lcity.startsWith(q) || (a.pt && a.pt.split(" ").some((_, i, w) => w.slice(i).join(" ").startsWith(q)))) score = 2;
     else if (a.hay.includes(q)) score = 3;
     else continue;
     out.push([score, a.rank, a]);
@@ -442,6 +480,7 @@ function fillForm(c) {
   form.one_way.checked = c.one_way;
   document.getElementById("return-field").hidden = c.one_way;
   document.getElementById("banner").hidden = c.has_token;
+  document.getElementById("serp-state").textContent = c.has_serpapi ? "✓ chave configurada" : "(opcional)";
   form.mock.checked = !c.has_token;
   document.getElementById("notify-wrap").hidden = !c.has_telegram;
 }
@@ -458,7 +497,28 @@ async function api(path, body) {
 const fmtDate = s => s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR", {weekday: "short", day: "2-digit", month: "short", year: "numeric"}) : "—";
 const fmtMoney = (v, cur) => v == null ? "—" : new Intl.NumberFormat("pt-BR", {style: "currency", currency: cur.toUpperCase(), maximumFractionDigits: 0}).format(v);
 
+function renderNotes(data) {
+  const ul = document.getElementById("notes");
+  ul.replaceChildren();
+  for (const n of data.notes || []) {
+    const li = document.createElement("li");
+    li.textContent = "⚠️ " + n;
+    ul.appendChild(li);
+  }
+  for (const m of data.missing || []) {
+    const li = document.createElement("li");
+    const a = BY_CODE.get(m.destination);
+    li.append(`Sem preço guardado para ${m.destination}${a && a.city ? " (" + a.city + ")" : ""} nessas datas. `);
+    const l = document.createElement("a");
+    l.href = m.google_flights; l.target = "_blank"; l.rel = "noopener";
+    l.textContent = "Ver no Google Flights";
+    li.appendChild(l);
+    ul.appendChild(li);
+  }
+}
+
 function render(data) {
+  renderNotes(data);
   rowsEl.replaceChildren();
   if (!data.results.length) {
     rowsEl.innerHTML = '<tr><td colspan="8" class="empty">Nenhum voo encontrado com esses filtros.</td></tr>';
@@ -537,11 +597,28 @@ document.getElementById("banner").addEventListener("submit", async e => {
   btn.disabled = true;
   setStatus("Conferindo o token…");
   try {
-    fillForm(await api("/api/token", {token: document.getElementById("token-input").value}));
+    fillForm(await api("/api/token", {kind: "travelpayouts", token: document.getElementById("token-input").value}));
     document.getElementById("token-input").value = "";
     setStatus("Token salvo e funcionando. Agora as buscas usam preços reais.");
   } catch (err) {
     setStatus("Token não funcionou: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("serp-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("serp-btn");
+  btn.disabled = true;
+  setStatus("Conferindo a chave…");
+  try {
+    fillForm(await api("/api/token", {kind: "serpapi", token: document.getElementById("serp-input").value}));
+    document.getElementById("serp-input").value = "";
+    document.getElementById("serp-box").open = false;
+    setStatus("Chave da SerpApi salva. Buscas com destino e data exata também consultam o Google Flights.");
+  } catch (err) {
+    setStatus("Chave não funcionou: " + err.message, true);
   } finally {
     btn.disabled = false;
   }
@@ -564,7 +641,8 @@ document.getElementById("save-btn").addEventListener("click", async () => {
     const raw = await api("/airports.json");
     AIRPORTS = raw.map(([code, name, city, country, rank]) => {
       const a = {code, name, city, country, rank, lcode: code.toLowerCase(), lcity: norm(city)};
-      a.hay = norm(`${code} ${city} ${name} ${countryName(country)} ${country}`);
+      a.pt = PT_NAMES[city] ? norm(PT_NAMES[city]) : "";
+      a.hay = norm(`${code} ${city} ${a.pt} ${name} ${countryName(country)} ${country}`);
       BY_CODE.set(code, a);
       return a;
     });

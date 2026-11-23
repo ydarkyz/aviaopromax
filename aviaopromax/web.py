@@ -5,13 +5,21 @@ import argparse
 import datetime as dt
 import json
 import os
+import urllib.parse
+import urllib.request
 import webbrowser
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import alerts, config
-from .providers import MockProvider, TravelpayoutsProvider
+from .providers import (
+    CombinedProvider,
+    MockProvider,
+    SerpApiProvider,
+    TravelpayoutsProvider,
+    google_flights_url,
+)
 from .store import Store
 
 STATIC = Path(__file__).parent / "static"
@@ -68,6 +76,9 @@ def save_config(cfg: config.Config, path: Path) -> None:
         "[travelpayouts]",
         f"token = {_toml_value(cfg.travelpayouts_token)}",
         "",
+        "[serpapi]",
+        f"key = {_toml_value(cfg.serpapi_key)}",
+        "",
         "[telegram]",
         f"bot_token = {_toml_value(cfg.telegram_token)}",
         f"chat_id = {_toml_value(cfg.telegram_chat_id)}",
@@ -117,8 +128,10 @@ class App:
         d = asdict(cfg)
         d.pop("telegram_token")
         d.pop("travelpayouts_token")
+        d.pop("serpapi_key")
         d.pop("telegram_chat_id")
         d["has_token"] = bool(cfg.travelpayouts_token)
+        d["has_serpapi"] = bool(cfg.serpapi_key)
         d["has_telegram"] = bool(cfg.telegram_token and cfg.telegram_chat_id)
         d["search_months"] = cfg.search_months()
         return d
@@ -126,9 +139,10 @@ class App:
     def search(self, form: dict) -> dict:
         cfg = apply_form(config.load(self.config_path), form)
         validate(cfg)
-        provider = MockProvider() if form.get("mock") else TravelpayoutsProvider(cfg.travelpayouts_token)
+        provider = self.provider(cfg, bool(form.get("mock")))
         store = Store(self.db_path)
         offers = provider.search(cfg)
+        notes = list(getattr(provider, "notes", []))
         deals = dict((o.route, r) for o, r in alerts.find_deals(cfg, offers, store))
         best = sorted(alerts.cheapest_per_route(offers).values(), key=lambda o: o.price)
         rows = []
@@ -147,17 +161,54 @@ class App:
                 alerts.format_deal(o, deals[o.route]) for o in best if o.route in deals
             )
             alerts.send_telegram(cfg, msg)
-        return {"months": cfg.search_months(), "results": rows, "deal_count": len(deals)}
+        found = {o.destination for o in best}
+        win, rwin = cfg.depart_window(), cfg.return_window()
+        depart = win[0].isoformat() if win else ""
+        ret = rwin[0].isoformat() if rwin else ""
+        missing = [
+            {"destination": d, "google_flights": google_flights_url(cfg.origin, d, depart, ret, cfg.direct_only)}
+            for d in cfg.destinations
+            if d not in found
+        ]
+        return {
+            "months": cfg.search_months(),
+            "results": rows,
+            "deal_count": len(deals),
+            "notes": notes,
+            "missing": missing,
+        }
+
+    @staticmethod
+    def provider(cfg: config.Config, mock: bool):
+        if mock:
+            return MockProvider()
+        sources = []
+        if cfg.travelpayouts_token:
+            sources.append(TravelpayoutsProvider(cfg.travelpayouts_token))
+        if cfg.serpapi_key:
+            sources.append(SerpApiProvider(cfg.serpapi_key))
+        if not sources:
+            raise RuntimeError("Nenhuma chave de API configurada (ou use o modo teste).")
+        return CombinedProvider(sources)
 
     def save_token(self, form: dict) -> dict:
         token = str(form.get("token") or "").strip()
         if not token:
-            raise ValueError("Cole o token da Travelpayouts.")
+            raise ValueError("Cole a chave.")
         cfg = config.load(self.config_path)
-        cfg.travelpayouts_token = token
-        TravelpayoutsProvider(token)._get(  # confere se o token funciona
-            {"origin": cfg.origin, "currency": cfg.currency, "limit": 1}
-        )
+        if form.get("kind") == "serpapi":
+            cfg.serpapi_key = token
+            # confere a chave sem gastar busca (a API de conta é grátis)
+            url = "https://serpapi.com/account.json?" + urllib.parse.urlencode({"api_key": token})
+            with urllib.request.urlopen(url, timeout=30) as r:
+                info = json.load(r)
+            if info.get("error"):
+                raise ValueError(info["error"])
+        else:
+            cfg.travelpayouts_token = token
+            TravelpayoutsProvider(token)._get(  # confere se o token funciona
+                {"origin": cfg.origin, "currency": cfg.currency, "limit": 1}
+            )
         save_config(cfg, self.config_path)
         return self.get_config()
 

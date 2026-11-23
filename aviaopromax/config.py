@@ -40,6 +40,7 @@ class Config:
     max_price: float = 400
     drop_pct: float = 15
     travelpayouts_token: str = ""
+    serpapi_key: str = ""
     telegram_token: str = ""
     telegram_chat_id: str = ""
 
@@ -87,6 +88,7 @@ def load(path: str | Path = "config.toml") -> Config:
     alerts = data.get("alerts", {})
     tg = data.get("telegram", {})
     tp = data.get("travelpayouts", {})
+    sp = data.get("serpapi", {})
     return Config(
         origin=data.get("origin", "BOS").upper(),
         destinations=[d.upper() for d in data.get("destinations", [])],
@@ -102,6 +104,7 @@ def load(path: str | Path = "config.toml") -> Config:
         max_price=float(alerts.get("max_price", 400)),
         drop_pct=float(alerts.get("drop_pct", 15)),
         travelpayouts_token=(tp.get("token") or os.getenv("TRAVELPAYOUTS_TOKEN", "")).strip(),
+        serpapi_key=(sp.get("key") or os.getenv("SERPAPI_KEY", "")).strip(),
         telegram_token=tg.get("bot_token") or os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=tg.get("chat_id") or os.getenv("TELEGRAM_CHAT_ID", ""),
     )

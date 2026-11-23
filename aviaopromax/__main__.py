@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 
 from . import alerts, config
-from .providers import MockProvider, TravelpayoutsProvider
 from .store import Store
 
 
@@ -16,7 +15,9 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     cfg = config.load(args.config)
-    provider = MockProvider() if args.mock else TravelpayoutsProvider(cfg.travelpayouts_token)
+    from .web import App
+
+    provider = App.provider(cfg, args.mock)
     store = Store(args.db)
 
     dest = ", ".join(cfg.destinations) or "qualquer lugar"

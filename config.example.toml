@@ -35,6 +35,10 @@ drop_pct = 15
 # Token da Data API (também pode usar a variável TRAVELPAYOUTS_TOKEN).
 token = ""
 
+[serpapi]
+# Opcional: preços ao vivo do Google Flights (grátis: 250 buscas/mês). Também: SERPAPI_KEY.
+key = ""
+
 [telegram]
 # Opcional. Também pode usar as variáveis TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID.
 bot_token = ""
