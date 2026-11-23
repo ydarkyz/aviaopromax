@@ -28,3 +28,18 @@ def test_drop_alert():
     assert find_deals(cfg, [offer("LIS", 450)], store) == []
     deals = find_deals(cfg, [offer("LIS", 390)], store)
     assert len(deals) == 1 and "caiu" in deals[0][1]
+
+
+def test_months_from_exact_window():
+    cfg = Config(depart_from="2026-12-28", depart_to="2027-02-02")
+    assert cfg.search_months() == ["2026-12", "2027-01", "2027-02"]
+    assert cfg.matches_dates("2027-01-15", "")
+    assert not cfg.matches_dates("2027-02-03", "")
+
+
+def test_travelpayouts_exact_day_params():
+    from aviaopromax.providers import TravelpayoutsProvider
+    cfg = Config(depart_from="2027-01-10", return_from="2027-01-17")
+    assert TravelpayoutsProvider._date_params(cfg) == [
+        {"departure_at": "2027-01-10", "return_at": "2027-01-17"}
+    ]

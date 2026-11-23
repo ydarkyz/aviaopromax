@@ -8,6 +8,7 @@ MockProvider gera dados falsos para testar sem token.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import random
@@ -52,14 +53,27 @@ class TravelpayoutsProvider:
             raise RuntimeError(f"Travelpayouts error: {body.get('error')}")
         return body.get("data", [])
 
+    @staticmethod
+    def _date_params(cfg: Config) -> list[dict]:
+        """Um conjunto de parâmetros de data por chamada à API."""
+        win = cfg.depart_window()
+        departs = [win[0].isoformat()] if win and win[0] == win[1] else cfg.search_months()
+        extra = {}
+        rwin = cfg.return_window()
+        if rwin and rwin[0] == rwin[1]:
+            extra["return_at"] = rwin[0].isoformat()
+        elif rwin and rwin[0].strftime("%Y-%m") == rwin[1].strftime("%Y-%m"):
+            extra["return_at"] = rwin[0].strftime("%Y-%m")
+        return [{"departure_at": d, **extra} for d in departs]
+
     def search(self, cfg: Config) -> list[Offer]:
         offers: list[Offer] = []
         dests = cfg.destinations or [""]
         for dest in dests:
-            for month in cfg.search_months():
+            for dates in self._date_params(cfg):
                 params = {
                     "origin": cfg.origin,
-                    "departure_at": month,
+                    **dates,
                     "one_way": str(cfg.one_way).lower(),
                     "direct": str(cfg.direct_only).lower(),
                     "currency": cfg.currency,
@@ -72,19 +86,19 @@ class TravelpayoutsProvider:
                     if cfg.direct_only and (d.get("transfers") or d.get("return_transfers")):
                         continue
                     link = d.get("link", "")
-                    offers.append(
-                        Offer(
-                            origin=d.get("origin", cfg.origin),
-                            destination=d.get("destination", dest),
-                            price=float(d["price"]),
-                            currency=cfg.currency,
-                            depart=(d.get("departure_at") or "")[:10],
-                            ret=(d.get("return_at") or "")[:10],
-                            airline=d.get("airline", ""),
-                            transfers=int(d.get("transfers", 0)),
-                            link=f"https://www.aviasales.com{link}" if link else "",
-                        )
+                    o = Offer(
+                        origin=d.get("origin", cfg.origin),
+                        destination=d.get("destination", dest),
+                        price=float(d["price"]),
+                        currency=cfg.currency,
+                        depart=(d.get("departure_at") or "")[:10],
+                        ret=(d.get("return_at") or "")[:10],
+                        airline=d.get("airline", ""),
+                        transfers=int(d.get("transfers", 0)),
+                        link=f"https://www.aviasales.com{link}" if link else "",
                     )
+                    if cfg.matches_dates(o.depart, o.ret):
+                        offers.append(o)
         return offers
 
 
@@ -94,20 +108,36 @@ class MockProvider:
     def __init__(self, seed: int | None = None):
         self.rng = random.Random(seed)
 
+    def _pick(self, lo: dt.date, hi: dt.date) -> dt.date:
+        return lo + dt.timedelta(days=self.rng.randint(0, (hi - lo).days))
+
     def search(self, cfg: Config) -> list[Offer]:
         dests = cfg.destinations or self.DESTS
+        win, rwin = cfg.depart_window(), cfg.return_window()
         out = []
         for dest in dests:
             for month in cfg.search_months():
-                day = self.rng.randint(1, 21)
+                y, m = map(int, month.split("-"))
+                lo, hi = dt.date(y, m, 1), dt.date(y, m, 28)
+                if win:
+                    lo, hi = max(lo, win[0]), min(hi, win[1])
+                    if lo > hi:
+                        continue
+                dep = self._pick(lo, hi)
+                if cfg.one_way:
+                    ret = ""
+                elif rwin:
+                    ret = self._pick(max(rwin[0], dep), max(rwin[1], dep)).isoformat()
+                else:
+                    ret = (dep + dt.timedelta(days=7)).isoformat()
                 out.append(
                     Offer(
                         origin=cfg.origin,
                         destination=dest,
                         price=float(self.rng.randint(90, 900)),
                         currency=cfg.currency,
-                        depart=f"{month}-{day:02d}",
-                        ret="" if cfg.one_way else f"{month}-{day + 7:02d}",
+                        depart=dep.isoformat(),
+                        ret=ret,
                         airline=self.rng.choice(["B6", "DL", "AA", "UA", "TP"]),
                         transfers=0 if cfg.direct_only else self.rng.randint(0, 2),
                         link="",

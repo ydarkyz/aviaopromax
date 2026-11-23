@@ -6,15 +6,19 @@
 <title>aviaopromax</title>
 <style>
   :root {
+    color-scheme: light;
     --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #646a76;
-    --line: #e3e6eb; --accent: #1f6feb; --accent-text: #ffffff;
+    --line: #e3e6eb; --accent: #1f6feb; --accent-text: #ffffff; --accent-soft: #e6efff;
     --deal-bg: #e7f6ec; --deal-text: #126b35; --err-bg: #fdecec; --err-text: #a12020;
+    --shadow: 0 8px 24px rgba(16, 24, 40, .12);
   }
   @media (prefers-color-scheme: dark) {
     :root {
+      color-scheme: dark;
       --bg: #0f1115; --card: #171a21; --text: #e8eaee; --muted: #9aa1ad;
-      --line: #2a2f39; --accent: #4c8dff; --accent-text: #0b0d11;
+      --line: #2a2f39; --accent: #4c8dff; --accent-text: #0b0d11; --accent-soft: #1b2a45;
       --deal-bg: #12301e; --deal-text: #7fdc9f; --err-bg: #3a1616; --err-text: #ff9c9c;
+      --shadow: 0 8px 24px rgba(0, 0, 0, .5);
     }
   }
   * { box-sizing: border-box; }
@@ -24,22 +28,60 @@
   main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
   header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
   h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+       letter-spacing: .04em; margin: 0 0 10px; }
   .sub { color: var(--muted); }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 16px; }
-  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
-  input[type=text], input[type=number] {
-    font: inherit; color: var(--text); background: var(--bg);
-    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .section + .section { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; }
+  .grid.wide { grid-template-columns: minmax(200px, 1fr) minmax(260px, 2fr); }
+  @media (max-width: 640px) { .grid.wide { grid-template-columns: 1fr; } }
+  label, .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=number], input[type=date], input[type=month] {
+    font: inherit; color: var(--text); background: var(--bg); width: 100%;
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px; }
   input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .checks { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; grid-column: 1 / -1; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { flex: 1; }
+  .row > .sep { flex: 0; color: var(--muted); }
+  .checks { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
   .checks label { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
-  .actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
   button { font: inherit; border-radius: 8px; padding: 9px 16px; cursor: pointer;
            border: 1px solid var(--line); background: var(--card); color: var(--text); }
   button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
   button:disabled { opacity: .6; cursor: wait; }
   .hint { font-size: 12px; color: var(--muted); }
+
+  /* seletor de aeroportos */
+  .picker { position: relative; }
+  .picker-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 40px;
+                padding: 4px 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; cursor: text; }
+  .picker-box:focus-within { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .picker-box input { flex: 1; min-width: 120px; border: 0; background: transparent; padding: 4px; min-height: 0; }
+  .picker-box input:focus { outline: none; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--text);
+          border-radius: 6px; padding: 3px 4px 3px 8px; font-size: 14px; max-width: 100%; }
+  .chip b { font-variant-numeric: tabular-nums; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .chip button { border: 0; background: transparent; padding: 0 4px; font-size: 16px; line-height: 1; color: var(--muted); }
+  .chip button:hover { color: var(--text); }
+  .menu { position: absolute; z-index: 10; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px;
+          list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+          box-shadow: var(--shadow); max-height: 320px; overflow-y: auto; }
+  .menu li { display: grid; grid-template-columns: 44px 1fr; gap: 2px 10px; padding: 8px; border-radius: 6px; cursor: pointer; }
+  .menu li[aria-selected=true] { background: var(--accent-soft); }
+  .menu .code { grid-row: span 2; font-weight: 700; font-variant-numeric: tabular-nums; align-self: center; }
+  .menu .city { color: var(--text); }
+  .menu .name { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu .none { display: block; color: var(--muted); cursor: default; }
+
+  /* abas de datas */
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 2px; margin-bottom: 12px; }
+  .tabs button { border: 0; padding: 6px 12px; border-radius: 6px; background: transparent; color: var(--muted); }
+  .tabs button[aria-pressed=true] { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+  .month-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
   .status { margin: 16px 0 8px; color: var(--muted); min-height: 1.4em; }
   .status.err { background: var(--err-bg); color: var(--err-text); padding: 10px 12px; border-radius: 8px; }
   .banner { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: var(--err-bg); color: var(--err-text); font-size: 14px; }
@@ -47,6 +89,7 @@
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  td .dest-city { color: var(--muted); font-size: 13px; margin-left: 6px; }
   td.price { font-weight: 700; font-variant-numeric: tabular-nums; }
   td.num { font-variant-numeric: tabular-nums; color: var(--muted); }
   tr.deal td { background: var(--deal-bg); }
@@ -67,28 +110,72 @@
     Sem <code>TRAVELPAYOUTS_TOKEN</code> configurado: só o modo de teste (dados falsos) funciona.
   </div>
 
-  <section class="card">
-    <form id="form">
-      <label>Origem (IATA)
-        <input type="text" name="origin" maxlength="3" placeholder="BOS">
-      </label>
-      <label>Destinos
-        <input type="text" name="destinations" placeholder="vazio = qualquer lugar">
-        <span class="hint">Ex.: LIS MAD CUN</span>
-      </label>
-      <label>Meses de ida
-        <input type="text" name="months" placeholder="vazio = próximos meses">
-        <span class="hint">Ex.: 2027-01 2027-02</span>
-      </label>
-      <label>Próximos N meses
-        <input type="number" name="months_ahead" min="1" max="12">
-      </label>
-      <label>Preço máximo (alerta)
-        <input type="number" name="max_price" min="0" step="10">
-      </label>
-      <label>Queda mínima % (alerta)
-        <input type="number" name="drop_pct" min="0" max="90">
-      </label>
+  <form id="form" class="card" autocomplete="off">
+    <div class="section">
+      <h2>Rota</h2>
+      <div class="grid wide">
+        <div class="field">Origem
+          <div class="picker" id="origin-picker" data-single></div>
+        </div>
+        <div class="field">Destinos
+          <div class="picker" id="dest-picker"></div>
+          <span class="hint">Deixe vazio para buscar qualquer lugar. Digite cidade, aeroporto ou código.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Datas</h2>
+      <div class="tabs" role="group" aria-label="Tipo de data">
+        <button type="button" data-mode="exact" aria-pressed="true">Datas exatas</button>
+        <button type="button" data-mode="flex" aria-pressed="false">Meses flexíveis</button>
+      </div>
+
+      <div id="mode-exact" class="grid">
+        <div class="field">Ida
+          <div class="row">
+            <input type="date" name="depart_from" aria-label="Ida: de">
+            <span class="sep">até</span>
+            <input type="date" name="depart_to" aria-label="Ida: até (opcional)">
+          </div>
+          <span class="hint">"Até" é opcional: deixe vazio para um dia só.</span>
+        </div>
+        <div class="field" id="return-field">Volta
+          <div class="row">
+            <input type="date" name="return_from" aria-label="Volta: de">
+            <span class="sep">até</span>
+            <input type="date" name="return_to" aria-label="Volta: até (opcional)">
+          </div>
+          <span class="hint">Vazio = qualquer data de volta.</span>
+        </div>
+      </div>
+
+      <div id="mode-flex" hidden>
+        <div class="grid">
+          <label>Próximos N meses
+            <input type="number" name="months_ahead" min="1" max="12">
+          </label>
+          <div class="field">Ou escolha meses específicos
+            <div class="row">
+              <input type="month" id="month-input" aria-label="Mês">
+              <button type="button" id="month-add" style="flex:0">Adicionar</button>
+            </div>
+          </div>
+        </div>
+        <div class="month-chips" id="month-chips"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Alertas</h2>
+      <div class="grid">
+        <label>Preço máximo (USD)
+          <input type="number" name="max_price" min="0" step="10">
+        </label>
+        <label>Queda mínima em relação ao menor já visto (%)
+          <input type="number" name="drop_pct" min="0" max="90">
+        </label>
+      </div>
       <div class="checks">
         <label><input type="checkbox" name="direct_only" checked> Só voos diretos</label>
         <label><input type="checkbox" name="one_way"> Só ida</label>
@@ -99,10 +186,10 @@
         <button type="submit" class="primary" id="search-btn">Buscar promoções</button>
         <button type="button" id="save-btn">Salvar como padrão</button>
       </div>
-    </form>
-  </section>
+    </div>
+  </form>
 
-  <p id="status" class="status"></p>
+  <p id="status" class="status" role="status"></p>
 
   <section class="card table-wrap">
     <table>
@@ -121,37 +208,229 @@
 const form = document.getElementById("form");
 const statusEl = document.getElementById("status");
 const rowsEl = document.getElementById("rows");
+const countryName = (() => {
+  try { const d = new Intl.DisplayNames(["pt-BR"], {type: "region"}); return c => { try { return d.of(c); } catch { return c; } }; }
+  catch { return c => c; }
+})();
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+let AIRPORTS = [];           // [{code, name, city, country, rank, hay}]
+const BY_CODE = new Map();
 
 function setStatus(text, isErr = false) {
   statusEl.textContent = text;
   statusEl.classList.toggle("err", isErr);
 }
 
+/* ---------- seletor de aeroportos ---------- */
+function searchAirports(q, exclude) {
+  q = norm(q.trim());
+  if (!q) return [];
+  const out = [];
+  for (const a of AIRPORTS) {
+    if (exclude.has(a.code)) continue;
+    let score;
+    if (a.lcode === q) score = 0;
+    else if (a.lcode.startsWith(q)) score = 1;
+    else if (a.lcity.startsWith(q)) score = 2;
+    else if (a.hay.includes(q)) score = 3;
+    else continue;
+    out.push([score, a.rank, a]);
+  }
+  out.sort((x, y) => x[0] - y[0] || x[1] - y[1] || x[2].code.localeCompare(y[2].code));
+  return out.slice(0, 8).map(x => x[2]);
+}
+
+function makePicker(root, {single = false, placeholder}) {
+  let selected = [];
+  let results = [];
+  let active = 0;
+  const box = document.createElement("div");
+  box.className = "picker-box";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-expanded", "false");
+  input.placeholder = placeholder;
+  const menu = document.createElement("ul");
+  menu.className = "menu";
+  menu.setAttribute("role", "listbox");
+  menu.id = root.id + "-menu";
+  input.setAttribute("aria-controls", menu.id);
+  menu.hidden = true;
+  root.append(box, menu);
+  box.addEventListener("click", () => input.focus());
+
+  function renderChips() {
+    box.replaceChildren();
+    for (const code of selected) {
+      const a = BY_CODE.get(code);
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      const b = document.createElement("b"); b.textContent = code;
+      const s = document.createElement("span"); s.textContent = a ? a.city || a.name : "";
+      s.title = a ? `${a.name}, ${countryName(a.country)}` : "";
+      const x = document.createElement("button");
+      x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", `Remover ${code}`);
+      x.addEventListener("click", e => { e.stopPropagation(); selected = selected.filter(c => c !== code); renderChips(); input.focus(); });
+      chip.append(b, s, x);
+      box.appendChild(chip);
+    }
+    input.placeholder = selected.length ? (single ? "Trocar…" : "Adicionar…") : placeholder;
+    box.appendChild(input);
+  }
+
+  function close() { menu.hidden = true; input.setAttribute("aria-expanded", "false"); }
+
+  function renderMenu() {
+    menu.replaceChildren();
+    if (!input.value.trim()) return close();
+    if (!results.length) {
+      const li = document.createElement("li");
+      li.className = "none"; li.textContent = "Nenhum aeroporto encontrado";
+      menu.appendChild(li);
+    }
+    results.forEach((a, i) => {
+      const li = document.createElement("li");
+      li.setAttribute("role", "option");
+      li.id = `${menu.id}-${i}`;
+      li.setAttribute("aria-selected", String(i === active));
+      const code = document.createElement("span"); code.className = "code"; code.textContent = a.code;
+      const city = document.createElement("span"); city.className = "city";
+      city.textContent = [a.city, countryName(a.country)].filter(Boolean).join(", ");
+      const name = document.createElement("span"); name.className = "name"; name.textContent = a.name;
+      li.append(code, city, name);
+      li.addEventListener("mousedown", e => { e.preventDefault(); choose(a); });
+      menu.appendChild(li);
+    });
+    if (results.length) input.setAttribute("aria-activedescendant", `${menu.id}-${active}`);
+    menu.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function choose(a) {
+    selected = single ? [a.code] : [...selected, a.code];
+    input.value = "";
+    results = [];
+    close();
+    renderChips();
+    input.focus();
+  }
+
+  input.addEventListener("input", () => {
+    results = searchAirports(input.value, new Set(selected));
+    active = 0;
+    renderMenu();
+  });
+  input.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" && results.length) { e.preventDefault(); active = (active + 1) % results.length; renderMenu(); }
+    else if (e.key === "ArrowUp" && results.length) { e.preventDefault(); active = (active - 1 + results.length) % results.length; renderMenu(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (results[active]) choose(results[active]); }
+    else if (e.key === "Escape") { close(); }
+    else if (e.key === "Backspace" && !input.value && selected.length) { selected.pop(); renderChips(); input.focus(); }
+  });
+  input.addEventListener("blur", () => setTimeout(close, 100));
+
+  renderChips();
+  return {
+    get: () => [...selected],
+    set: codes => { selected = codes.filter(c => BY_CODE.has(c)); if (single) selected = selected.slice(0, 1); renderChips(); },
+  };
+}
+
+const originPicker = makePicker(document.getElementById("origin-picker"), {single: true, placeholder: "Cidade ou aeroporto"});
+const destPicker = makePicker(document.getElementById("dest-picker"), {placeholder: "Qualquer lugar"});
+
+/* ---------- datas ---------- */
+let dateMode = "exact";
+let months = [];
+const today = new Date();
+const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const todayIso = iso(today);
+for (const n of ["depart_from", "depart_to", "return_from", "return_to"]) form[n].min = todayIso;
+document.getElementById("month-input").min = todayIso.slice(0, 7);
+
+function setMode(mode) {
+  dateMode = mode;
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  document.getElementById("mode-exact").hidden = mode !== "exact";
+  document.getElementById("mode-flex").hidden = mode !== "flex";
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+
+// "até" e volta não podem ser antes da ida
+form.depart_from.addEventListener("change", () => {
+  const v = form.depart_from.value || todayIso;
+  form.depart_to.min = v;
+  form.return_from.min = v;
+  if (form.depart_to.value && form.depart_to.value < v) form.depart_to.value = "";
+  if (form.return_from.value && form.return_from.value < v) form.return_from.value = "";
+});
+form.return_from.addEventListener("change", () => {
+  form.return_to.min = form.return_from.value || todayIso;
+  if (form.return_to.value && form.return_to.value < form.return_from.value) form.return_to.value = "";
+});
+form.one_way.addEventListener("change", () => { document.getElementById("return-field").hidden = form.one_way.checked; });
+
+function renderMonths() {
+  const wrap = document.getElementById("month-chips");
+  wrap.replaceChildren();
+  months.sort();
+  for (const m of months) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    const [y, mo] = m.split("-").map(Number);
+    const s = document.createElement("b");
+    s.textContent = new Date(y, mo - 1, 1).toLocaleDateString("pt-BR", {month: "long", year: "numeric"});
+    const x = document.createElement("button");
+    x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", `Remover ${s.textContent}`);
+    x.addEventListener("click", () => { months = months.filter(v => v !== m); renderMonths(); });
+    chip.append(s, x);
+    wrap.appendChild(chip);
+  }
+}
+document.getElementById("month-add").addEventListener("click", () => {
+  const v = document.getElementById("month-input").value;
+  if (v && !months.includes(v)) { months.push(v); renderMonths(); }
+});
+
+/* ---------- formulário ---------- */
 function readForm() {
   const f = new FormData(form);
+  const exact = dateMode === "exact";
+  const oneWay = f.has("one_way");
   return {
-    origin: f.get("origin"),
-    destinations: f.get("destinations"),
-    months: f.get("months"),
+    origin: originPicker.get()[0] || "",
+    destinations: destPicker.get(),
+    depart_from: exact ? f.get("depart_from") : "",
+    depart_to: exact ? f.get("depart_to") : "",
+    return_from: exact && !oneWay ? f.get("return_from") : "",
+    return_to: exact && !oneWay ? f.get("return_to") : "",
+    months: exact ? [] : months,
     months_ahead: Number(f.get("months_ahead") || 6),
     max_price: Number(f.get("max_price") || 0),
     drop_pct: Number(f.get("drop_pct") || 0),
     direct_only: f.has("direct_only"),
-    one_way: f.has("one_way"),
+    one_way: oneWay,
     mock: f.has("mock"),
     notify: f.has("notify"),
   };
 }
 
 function fillForm(c) {
-  form.origin.value = c.origin;
-  form.destinations.value = c.destinations.join(" ");
-  form.months.value = c.months.join(" ");
+  originPicker.set([c.origin]);
+  destPicker.set(c.destinations);
+  for (const n of ["depart_from", "depart_to", "return_from", "return_to"]) form[n].value = c[n] || "";
+  months = [...c.months];
+  renderMonths();
+  setMode(c.depart_from || !c.months.length ? "exact" : "flex");
   form.months_ahead.value = c.months_ahead;
   form.max_price.value = c.max_price;
   form.drop_pct.value = c.drop_pct;
   form.direct_only.checked = c.direct_only;
   form.one_way.checked = c.one_way;
+  document.getElementById("return-field").hidden = c.one_way;
   document.getElementById("banner").hidden = c.has_token;
   if (!c.has_token) form.mock.checked = true;
   document.getElementById("notify-wrap").hidden = !c.has_telegram;
@@ -166,7 +445,7 @@ async function api(path, body) {
   return data;
 }
 
-const fmtDate = s => s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR", {day: "2-digit", month: "short", year: "numeric"}) : "—";
+const fmtDate = s => s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR", {weekday: "short", day: "2-digit", month: "short", year: "numeric"}) : "—";
 const fmtMoney = (v, cur) => v == null ? "—" : new Intl.NumberFormat("pt-BR", {style: "currency", currency: cur.toUpperCase(), maximumFractionDigits: 0}).format(v);
 
 function render(data) {
@@ -178,21 +457,26 @@ function render(data) {
   for (const r of data.results) {
     const tr = document.createElement("tr");
     if (r.deal) tr.className = "deal";
+    const destTd = document.createElement("td");
+    const code = document.createElement("b"); code.textContent = r.destination;
+    const city = document.createElement("span"); city.className = "dest-city";
+    const a = BY_CODE.get(r.destination);
+    city.textContent = a ? [a.city, countryName(a.country)].filter(Boolean).join(", ") : "";
+    destTd.append(code, city);
+    tr.appendChild(destTd);
     const cells = [
-      r.destination,
-      fmtMoney(r.price, r.currency),
-      fmtDate(r.depart),
-      r.ret ? fmtDate(r.ret) : "só ida",
-      r.airline || "—",
-      fmtMoney(r.previous_best, r.currency),
+      [fmtMoney(r.price, r.currency), "price"],
+      [fmtDate(r.depart), ""],
+      [r.ret ? fmtDate(r.ret) : "só ida", ""],
+      [r.airline || "—", ""],
+      [fmtMoney(r.previous_best, r.currency), "num"],
     ];
-    cells.forEach((text, i) => {
+    for (const [text, cls] of cells) {
       const td = document.createElement("td");
       td.textContent = text;
-      if (i === 1) td.className = "price";
-      if (i === 5) td.className = "num";
+      if (cls) td.className = cls;
       tr.appendChild(td);
-    });
+    }
     const dealTd = document.createElement("td");
     if (r.deal) {
       const b = document.createElement("span");
@@ -202,22 +486,32 @@ function render(data) {
     tr.appendChild(dealTd);
     const linkTd = document.createElement("td");
     if (r.link) {
-      const a = document.createElement("a");
-      a.href = r.link; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Ver voo";
-      linkTd.appendChild(a);
+      const l = document.createElement("a");
+      l.href = r.link; l.target = "_blank"; l.rel = "noopener"; l.textContent = "Ver voo";
+      linkTd.appendChild(l);
     }
     tr.appendChild(linkTd);
     rowsEl.appendChild(tr);
   }
 }
 
+function checkForm(body) {
+  if (!body.origin) return "Escolha o aeroporto de origem.";
+  if (dateMode === "exact" && !body.depart_from && (body.depart_to || body.return_from || body.return_to))
+    return "Escolha a data de ida.";
+  return "";
+}
+
 form.addEventListener("submit", async e => {
   e.preventDefault();
+  const body = readForm();
+  const problem = checkForm(body);
+  if (problem) return setStatus(problem, true);
   const btn = document.getElementById("search-btn");
   btn.disabled = true;
   setStatus("Buscando…");
   try {
-    const data = await api("/api/search", readForm());
+    const data = await api("/api/search", body);
     render(data);
     setStatus(`${data.results.length} destino(s) · ${data.deal_count} promoção(ões) · meses: ${data.months.join(", ")}`);
   } catch (err) {
@@ -228,15 +522,31 @@ form.addEventListener("submit", async e => {
 });
 
 document.getElementById("save-btn").addEventListener("click", async () => {
+  const body = readForm();
+  const problem = checkForm(body);
+  if (problem) return setStatus(problem, true);
   try {
-    fillForm(await api("/api/config", readForm()));
+    fillForm(await api("/api/config", body));
     setStatus("Configuração salva em config.toml.");
   } catch (err) {
     setStatus("Erro ao salvar: " + err.message, true);
   }
 });
 
-api("/api/config").then(fillForm).catch(err => setStatus("Erro: " + err.message, true));
+(async () => {
+  try {
+    const raw = await api("/airports.json");
+    AIRPORTS = raw.map(([code, name, city, country, rank]) => {
+      const a = {code, name, city, country, rank, lcode: code.toLowerCase(), lcity: norm(city)};
+      a.hay = norm(`${code} ${city} ${name} ${countryName(country)} ${country}`);
+      BY_CODE.set(code, a);
+      return a;
+    });
+    fillForm(await api("/api/config"));
+  } catch (err) {
+    setStatus("Erro: " + err.message, true);
+  }
+})();
 </script>
 </body>
 </html>

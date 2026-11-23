@@ -30,3 +30,31 @@ def test_search_mock_direct_only(tmp_path):
 def test_mock_direct_only_default():
     offers = MockProvider(seed=1).search(config.Config())
     assert all(o.transfers == 0 for o in offers)
+
+
+def test_rejects_unknown_airport(tmp_path):
+    import pytest
+    app = App(tmp_path / "config.toml", str(tmp_path / "p.db"))
+    with pytest.raises(ValueError, match="XXX"):
+        app.search({"mock": True, "destinations": ["XXX"]})
+
+
+def test_exact_dates_filter(tmp_path):
+    app = App(tmp_path / "config.toml", str(tmp_path / "p.db"))
+    out = app.search({
+        "mock": True, "destinations": ["LIS", "MAD"],
+        "depart_from": "2027-01-10", "depart_to": "2027-01-12",
+        "return_from": "2027-01-20", "return_to": "2027-01-25",
+    })
+    assert out["months"] == ["2027-01"]
+    assert len(out["results"]) == 2
+    for r in out["results"]:
+        assert "2027-01-10" <= r["depart"] <= "2027-01-12"
+        assert "2027-01-20" <= r["ret"] <= "2027-01-25"
+
+
+def test_return_before_depart_rejected(tmp_path):
+    import pytest
+    app = App(tmp_path / "config.toml", str(tmp_path / "p.db"))
+    with pytest.raises(ValueError, match="volta"):
+        app.search({"mock": True, "depart_from": "2027-02-10", "return_from": "2027-02-01"})

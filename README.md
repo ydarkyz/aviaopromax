@@ -19,6 +19,12 @@ meses, limites de alerta, só diretos, só ida), tabela com as tarifas mais bara
 por destino, promoções destacadas e botão para salvar a configuração em `config.toml`.
 Sem token, marque "Modo teste" para ver dados falsos.
 
+- **Aeroportos:** digite cidade, nome ou código e escolha na lista. Só aparecem
+  aeroportos reais com voos comerciais regulares (base pública OurAirports,
+  em `aviaopromax/static/airports.json`; para atualizar, veja `tools/build_airports.py`).
+- **Datas:** "Datas exatas" com calendário (ida e volta, um dia ou um intervalo)
+  ou "Meses flexíveis".
+
 ## Linha de comando
 
 ```bash

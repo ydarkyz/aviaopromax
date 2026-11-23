@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import webbrowser
@@ -14,6 +15,26 @@ from .providers import MockProvider, TravelpayoutsProvider
 from .store import Store
 
 STATIC = Path(__file__).parent / "static"
+_AIRPORTS: set[str] | None = None
+
+
+def known_airports() -> set[str]:
+    global _AIRPORTS
+    if _AIRPORTS is None:
+        _AIRPORTS = {a[0] for a in json.loads((STATIC / "airports.json").read_text())}
+    return _AIRPORTS
+
+
+def validate(cfg: config.Config) -> None:
+    known = known_airports()
+    bad = [c for c in [cfg.origin, *cfg.destinations] if c not in known]
+    if bad:
+        raise ValueError(f"Aeroporto desconhecido: {', '.join(bad)}")
+    win, rwin = cfg.depart_window(), cfg.return_window()
+    if rwin and not win:
+        raise ValueError("Escolha a data de ida antes da volta.")
+    if win and rwin and rwin[1] < win[0]:
+        raise ValueError("A volta não pode ser antes da ida.")
 
 
 def _toml_value(v) -> str:
@@ -32,6 +53,10 @@ def save_config(cfg: config.Config, path: Path) -> None:
         f"destinations = {_toml_value(cfg.destinations)}",
         f"months = {_toml_value(cfg.months)}",
         f"months_ahead = {cfg.months_ahead}",
+        f"depart_from = {_toml_value(cfg.depart_from)}",
+        f"depart_to = {_toml_value(cfg.depart_to)}",
+        f"return_from = {_toml_value(cfg.return_from)}",
+        f"return_to = {_toml_value(cfg.return_to)}",
         f"one_way = {_toml_value(cfg.one_way)}",
         f"direct_only = {_toml_value(cfg.direct_only)}",
         f"currency = {_toml_value(cfg.currency)}",
@@ -60,9 +85,14 @@ def apply_form(cfg: config.Config, form: dict) -> config.Config:
         cfg.destinations = _codes(form["destinations"])
     if "months" in form:
         cfg.months = [m for m in _codes(form["months"]) if m]
-    for key in ("months_ahead",):
+    if "months_ahead" in form:
+        cfg.months_ahead = max(1, min(12, int(form["months_ahead"] or 6)))
+    for key in ("depart_from", "depart_to", "return_from", "return_to"):
         if key in form:
-            cfg.months_ahead = max(1, min(12, int(form[key] or 6)))
+            v = str(form[key] or "").strip()
+            if v:
+                dt.date.fromisoformat(v)  # erro se a data for inválida
+            setattr(cfg, key, v)
     for key in ("one_way", "direct_only"):
         if key in form:
             setattr(cfg, key, bool(form[key]))
@@ -91,6 +121,7 @@ class App:
 
     def search(self, form: dict) -> dict:
         cfg = apply_form(config.load(self.config_path), form)
+        validate(cfg)
         provider = MockProvider() if form.get("mock") else TravelpayoutsProvider()
         store = Store(self.db_path)
         offers = provider.search(cfg)
@@ -116,6 +147,7 @@ class App:
 
     def save(self, form: dict) -> dict:
         cfg = apply_form(config.load(self.config_path), form)
+        validate(cfg)
         save_config(cfg, self.config_path)
         return self.get_config()
 
@@ -138,6 +170,8 @@ def make_handler(app: App):
         def do_GET(self):
             if self.path in ("/", "/index.html"):
                 self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
+            elif self.path == "/airports.json":
+                self._send(200, (STATIC / "airports.json").read_bytes(), "application/json")
             elif self.path == "/api/config":
                 self._json(200, app.get_config())
             else:

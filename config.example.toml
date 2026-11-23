@@ -10,6 +10,13 @@ destinations = []
 months = []
 months_ahead = 6
 
+# Datas exatas (AAAA-MM-DD). Se depart_from estiver preenchido, substituem `months`.
+# "_to" vazio = um dia só. Volta vazia = qualquer data de volta.
+depart_from = ""
+depart_to = ""
+return_from = ""
+return_to = ""
+
 # true = só ida; false = ida e volta
 one_way = false
 
