@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aviaopromax</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #646a76;
+    --line: #e3e6eb; --accent: #1f6feb; --accent-text: #ffffff;
+    --deal-bg: #e7f6ec; --deal-text: #126b35; --err-bg: #fdecec; --err-text: #a12020;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #171a21; --text: #e8eaee; --muted: #9aa1ad;
+      --line: #2a2f39; --accent: #4c8dff; --accent-text: #0b0d11;
+      --deal-bg: #12301e; --deal-text: #7fdc9f; --err-bg: #3a1616; --err-text: #ff9c9c;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin: 0; }
+  .sub { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 16px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=number] {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .checks { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; grid-column: 1 / -1; }
+  .checks label { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
+  .actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; border-radius: 8px; padding: 9px 16px; cursor: pointer;
+           border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .status { margin: 16px 0 8px; color: var(--muted); min-height: 1.4em; }
+  .status.err { background: var(--err-bg); color: var(--err-text); padding: 10px 12px; border-radius: 8px; }
+  .banner { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: var(--err-bg); color: var(--err-text); font-size: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  td.price { font-weight: 700; font-variant-numeric: tabular-nums; }
+  td.num { font-variant-numeric: tabular-nums; color: var(--muted); }
+  tr.deal td { background: var(--deal-bg); }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px;
+           background: var(--deal-bg); color: var(--deal-text); font-weight: 600; white-space: normal; }
+  a { color: var(--accent); }
+  .empty { color: var(--muted); padding: 24px 8px; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>✈️ aviaopromax</h1>
+    <span class="sub">Promoções de voos diretos</span>
+  </header>
+
+  <div id="banner" class="banner" hidden>
+    Sem <code>TRAVELPAYOUTS_TOKEN</code> configurado: só o modo de teste (dados falsos) funciona.
+  </div>
+
+  <section class="card">
+    <form id="form">
+      <label>Origem (IATA)
+        <input type="text" name="origin" maxlength="3" placeholder="BOS">
+      </label>
+      <label>Destinos
+        <input type="text" name="destinations" placeholder="vazio = qualquer lugar">
+        <span class="hint">Ex.: LIS MAD CUN</span>
+      </label>
+      <label>Meses de ida
+        <input type="text" name="months" placeholder="vazio = próximos meses">
+        <span class="hint">Ex.: 2027-01 2027-02</span>
+      </label>
+      <label>Próximos N meses
+        <input type="number" name="months_ahead" min="1" max="12">
+      </label>
+      <label>Preço máximo (alerta)
+        <input type="number" name="max_price" min="0" step="10">
+      </label>
+      <label>Queda mínima % (alerta)
+        <input type="number" name="drop_pct" min="0" max="90">
+      </label>
+      <div class="checks">
+        <label><input type="checkbox" name="direct_only" checked> Só voos diretos</label>
+        <label><input type="checkbox" name="one_way"> Só ida</label>
+        <label><input type="checkbox" name="mock"> Modo teste (dados falsos)</label>
+        <label id="notify-wrap" hidden><input type="checkbox" name="notify"> Enviar alertas no Telegram</label>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary" id="search-btn">Buscar promoções</button>
+        <button type="button" id="save-btn">Salvar como padrão</button>
+      </div>
+    </form>
+  </section>
+
+  <p id="status" class="status"></p>
+
+  <section class="card table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Destino</th><th>Preço</th><th>Ida</th><th>Volta</th><th>Cia</th>
+          <th>Menor já visto</th><th>Alerta</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="8" class="empty">Faça uma busca para ver as tarifas.</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const form = document.getElementById("form");
+const statusEl = document.getElementById("status");
+const rowsEl = document.getElementById("rows");
+
+function setStatus(text, isErr = false) {
+  statusEl.textContent = text;
+  statusEl.classList.toggle("err", isErr);
+}
+
+function readForm() {
+  const f = new FormData(form);
+  return {
+    origin: f.get("origin"),
+    destinations: f.get("destinations"),
+    months: f.get("months"),
+    months_ahead: Number(f.get("months_ahead") || 6),
+    max_price: Number(f.get("max_price") || 0),
+    drop_pct: Number(f.get("drop_pct") || 0),
+    direct_only: f.has("direct_only"),
+    one_way: f.has("one_way"),
+    mock: f.has("mock"),
+    notify: f.has("notify"),
+  };
+}
+
+function fillForm(c) {
+  form.origin.value = c.origin;
+  form.destinations.value = c.destinations.join(" ");
+  form.months.value = c.months.join(" ");
+  form.months_ahead.value = c.months_ahead;
+  form.max_price.value = c.max_price;
+  form.drop_pct.value = c.drop_pct;
+  form.direct_only.checked = c.direct_only;
+  form.one_way.checked = c.one_way;
+  document.getElementById("banner").hidden = c.has_token;
+  if (!c.has_token) form.mock.checked = true;
+  document.getElementById("notify-wrap").hidden = !c.has_telegram;
+}
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+const fmtDate = s => s ? new Date(s + "T12:00:00").toLocaleDateString("pt-BR", {day: "2-digit", month: "short", year: "numeric"}) : "—";
+const fmtMoney = (v, cur) => v == null ? "—" : new Intl.NumberFormat("pt-BR", {style: "currency", currency: cur.toUpperCase(), maximumFractionDigits: 0}).format(v);
+
+function render(data) {
+  rowsEl.replaceChildren();
+  if (!data.results.length) {
+    rowsEl.innerHTML = '<tr><td colspan="8" class="empty">Nenhum voo encontrado com esses filtros.</td></tr>';
+    return;
+  }
+  for (const r of data.results) {
+    const tr = document.createElement("tr");
+    if (r.deal) tr.className = "deal";
+    const cells = [
+      r.destination,
+      fmtMoney(r.price, r.currency),
+      fmtDate(r.depart),
+      r.ret ? fmtDate(r.ret) : "só ida",
+      r.airline || "—",
+      fmtMoney(r.previous_best, r.currency),
+    ];
+    cells.forEach((text, i) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (i === 1) td.className = "price";
+      if (i === 5) td.className = "num";
+      tr.appendChild(td);
+    });
+    const dealTd = document.createElement("td");
+    if (r.deal) {
+      const b = document.createElement("span");
+      b.className = "badge"; b.textContent = r.deal;
+      dealTd.appendChild(b);
+    }
+    tr.appendChild(dealTd);
+    const linkTd = document.createElement("td");
+    if (r.link) {
+      const a = document.createElement("a");
+      a.href = r.link; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Ver voo";
+      linkTd.appendChild(a);
+    }
+    tr.appendChild(linkTd);
+    rowsEl.appendChild(tr);
+  }
+}
+
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("search-btn");
+  btn.disabled = true;
+  setStatus("Buscando…");
+  try {
+    const data = await api("/api/search", readForm());
+    render(data);
+    setStatus(`${data.results.length} destino(s) · ${data.deal_count} promoção(ões) · meses: ${data.months.join(", ")}`);
+  } catch (err) {
+    setStatus("Erro: " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("save-btn").addEventListener("click", async () => {
+  try {
+    fillForm(await api("/api/config", readForm()));
+    setStatus("Configuração salva em config.toml.");
+  } catch (err) {
+    setStatus("Erro ao salvar: " + err.message, true);
+  }
+});
+
+api("/api/config").then(fillForm).catch(err => setStatus("Erro: " + err.message, true));
+</script>
+</body>
+</html>

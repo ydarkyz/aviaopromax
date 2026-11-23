@@ -6,7 +6,20 @@ e avisa quando aparece promoção.
 
 Datas e destinos são opcionais: deixe vazios até decidir.
 
-## Uso
+Por padrão busca **somente voos diretos** (`direct_only = true`).
+
+## Interface web
+
+```bash
+python -m aviaopromax.web
+```
+
+Abre `http://localhost:8000` no navegador: formulário de busca (origem, destinos,
+meses, limites de alerta, só diretos, só ida), tabela com as tarifas mais baratas
+por destino, promoções destacadas e botão para salvar a configuração em `config.toml`.
+Sem token, marque "Modo teste" para ver dados falsos.
+
+## Linha de comando
 
 ```bash
 cp config.example.toml config.toml   # ajuste origem, limites etc.

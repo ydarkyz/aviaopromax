@@ -69,6 +69,8 @@ class TravelpayoutsProvider:
                 if dest:
                     params["destination"] = dest
                 for d in self._get(params):
+                    if cfg.direct_only and (d.get("transfers") or d.get("return_transfers")):
+                        continue
                     link = d.get("link", "")
                     offers.append(
                         Offer(
@@ -107,7 +109,7 @@ class MockProvider:
                         depart=f"{month}-{day:02d}",
                         ret="" if cfg.one_way else f"{month}-{day + 7:02d}",
                         airline=self.rng.choice(["B6", "DL", "AA", "UA", "TP"]),
-                        transfers=self.rng.randint(0, 2),
+                        transfers=0 if cfg.direct_only else self.rng.randint(0, 2),
                         link="",
                     )
                 )

@@ -13,8 +13,8 @@ months_ahead = 6
 # true = só ida; false = ida e volta
 one_way = false
 
-# true = só voos diretos
-direct_only = false
+# true = só voos diretos (padrão)
+direct_only = true
 
 currency = "usd"
 
